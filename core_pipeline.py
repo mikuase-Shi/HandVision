@@ -44,6 +44,8 @@ class HandMotionReconstructor:
     def __init__(self, focal_length_x=800.0, focal_length_y=800.0):
         print("Initializing MediaPipe Hands...")
         self.mp_hands = mp.solutions.hands
+        self.mp_drawing = mp.solutions.drawing_utils
+        self.mp_drawing_styles = mp.solutions.drawing_styles
         self.hands = self.mp_hands.Hands(
             static_image_mode=False,
             max_num_hands=1,         # Assume 1 hand for simplicity
@@ -104,6 +106,15 @@ class HandMotionReconstructor:
         R_c2w, t_c2w = self.slam.get_pose()
         
         if results.multi_hand_landmarks:
+            for hand_landmarks in results.multi_hand_landmarks:
+                self.mp_drawing.draw_landmarks(
+                    frame_bgr,
+                    hand_landmarks,
+                    self.mp_hands.HAND_CONNECTIONS,
+                    self.mp_drawing_styles.get_default_hand_landmarks_style(),
+                    self.mp_drawing_styles.get_default_hand_connections_style()
+                )
+
             hand_landmarks = results.multi_hand_landmarks[0]
             
             # Use the WRIST (landmark 0) as the root joint
