@@ -143,6 +143,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dummy", action="store_true", help="Run on dummy synthetic frames instead of webcam")
     parser.add_argument("--frames", type=int, default=30, help="Number of frames to run")
+    parser.add_argument("--video_path", type=str, default=None, help="Path to input video file")
     args = parser.parse_args()
     
     reconstructor = HandMotionReconstructor()
@@ -184,8 +185,28 @@ def main():
             if world_hand is not None:
                 trajectory_data["hand_positions"].append(world_hand.tolist())
     else:
-        print("Starting webcam... Press 'q' to quit.")
-        cap = cv2.VideoCapture(0)
+        if args.video_path:
+            print(f"Opening video file: {args.video_path}")
+            cap = cv2.VideoCapture(args.video_path)
+        else:
+            print("Starting webcam...")
+            cap = cv2.VideoCapture(0)
+
+        if not cap.isOpened():
+            print("Error: Could not open video source.")
+            return
+
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        if fps == 0 or np.isnan(fps):
+            fps = 30.0
+            
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter('output_tracking.mp4', fourcc, fps, (width, height))
+        
+        frame_count = 0
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
@@ -197,11 +218,14 @@ def main():
             if world_hand is not None:
                 trajectory_data["hand_positions"].append(world_hand.tolist())
                 
-            cv2.imshow('Hand Tracking', annotated_frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+            out.write(annotated_frame)
+            
+            frame_count += 1
+            if frame_count % 10 == 0:
+                print(f"Processed {frame_count} frames...")
+
         cap.release()
-        cv2.destroyAllWindows()
+        out.release()
         
     # Save output
     with open("trajectory_data.json", "w") as f:
